@@ -15,10 +15,8 @@ services:
     stdin_open: true
     tty: true
     user: dev
-    working_dir: /home/dev/items/dev-env
     volumes:
       - personal-devbox-home:/home/dev
-      - ${HOME}/items:/home/dev/items
 
 volumes:
   personal-devbox-home:
