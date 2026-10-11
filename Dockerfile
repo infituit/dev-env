@@ -15,13 +15,14 @@ ARG CHEZMOI_VERSION
 ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/${USERNAME} \
     LOGNAME=${USERNAME} \
-    MISE_DATA_DIR=/opt/mise \
-    MISE_CONFIG_DIR=/etc/mise \
-    MISE_CACHE_DIR=/opt/mise/cache \
+    MISE_DATA_DIR=/home/${USERNAME}/.local/share/mise \
+    MISE_CONFIG_DIR=/home/${USERNAME}/.config/mise \
+    MISE_CACHE_DIR=/home/${USERNAME}/.cache/mise \
+    MISE_STATE_DIR=/home/${USERNAME}/.local/state/mise \
     MISE_INSTALL_PATH=/usr/local/bin/mise \
     SHELL=/usr/bin/zsh \
     USER=${USERNAME} \
-    PATH=/opt/mise/shims:/usr/local/bin:${PATH}
+    PATH=/home/${USERNAME}/.local/share/mise/shims:/usr/local/bin:${PATH}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -48,7 +49,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         vim \
         zsh
 
-# Identity and workspace: keep bind-mounted ~/items writable from host and container.
+# Identity and home: keep the persistent container home writable by the dev user.
 RUN if getent group "${USER_GID}" >/dev/null; then \
         EXISTING_GROUP="$(getent group "${USER_GID}" | cut -d: -f1)"; \
         groupmod --new-name "${USERNAME}" "${EXISTING_GROUP}"; \
