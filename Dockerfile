@@ -1,4 +1,7 @@
+# syntax=docker/dockerfile:1
+
 ARG MISE_VERSION=2026.9.11
+ARG CHEZMOI_VERSION=2.73.0
 
 FROM ghcr.io/jdx/mise:${MISE_VERSION} AS mise-image
 
@@ -7,6 +10,7 @@ FROM mcr.microsoft.com/devcontainers/base:bookworm
 ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=${USER_UID}
+ARG CHEZMOI_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/${USERNAME} \
@@ -22,7 +26,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # OS foundation: packages expected in every shell, bootstrap, and diagnostics path.
-RUN apt-get update \
+RUN rm -f /etc/apt/apt.conf.d/docker-clean \
+    && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
         autojump \
@@ -38,8 +46,7 @@ RUN apt-get update \
         tar \
         unzip \
         vim \
-        zsh \
-    && rm -rf /var/lib/apt/lists/*
+        zsh
 
 # Identity and workspace: keep bind-mounted ~/items writable from host and container.
 RUN if getent group "${USER_GID}" >/dev/null; then \
@@ -65,7 +72,10 @@ COPY --from=mise-image /usr/local/bin/mise /usr/local/bin/mise
 RUN mise --version
 
 # Dotfiles manager layer: install chezmoi only; applying private dotfiles is first-run state.
-RUN sh -c "$(curl -fsLS https://get.chezmoi.io)" -- -b /usr/local/bin \
+RUN curl --fail --show-error --silent --location --retry 3 --retry-delay 2 --http1.1 \
+        "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/chezmoi_${CHEZMOI_VERSION}_linux-glibc_amd64.tar.gz" \
+        | tar --extract --gzip --directory /usr/local/bin chezmoi \
+    && chmod +x /usr/local/bin/chezmoi \
     && chezmoi --version
 
 # Future layers stay separate: docker access, AI agent config, and language runtimes.
