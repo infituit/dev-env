@@ -4,5 +4,10 @@
   "service": "devbox",
   "runServices": ["devbox"],
   "remoteUser": "dev",
-  "shutdownAction": "none"
+  "shutdownAction": "none",
+  "customizations": {
+    "jetbrains": {
+      "plugins": ["com.intellij.zh"]
+    }
+  }
 }
