@@ -1,0 +1,25 @@
+name: personal-devbox
+
+services:
+  devbox:
+    container_name: personal-devbox
+    image: personal-devbox:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: dev
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    command: sleep infinity
+    stdin_open: true
+    tty: true
+    user: dev
+    working_dir: /home/dev
+    volumes:
+      - personal-devbox-home:/home/dev
+      - ${HOME}/items:/home/dev/items
+
+volumes:
+  personal-devbox-home:
+    name: personal-devbox-home

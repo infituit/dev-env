@@ -1,0 +1,9 @@
+{
+  "name": "Personal Devbox",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "devbox",
+  "runServices": ["devbox"],
+  "workspaceFolder": "/home/dev/items",
+  "remoteUser": "dev",
+  "shutdownAction": "none"
+}
