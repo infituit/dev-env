@@ -7,9 +7,7 @@
 - 使用个人工作区约定时，宿主机需要有 `~/items`。
 - 使用 IDE 集成时，需要 JetBrains IDE 或其他 Dev Containers 客户端。
 
-Windows 上建议使用带 WSL2 backend 的 Docker Desktop。宿主工作区需要放在
-Docker Desktop 可以共享给容器的位置。不要假设 Linux `$HOME` 表达式在每个
-Windows shell 中含义相同；通过选定的调用方或客户端提供源码挂载。
+Windows 上建议使用带 WSL2 backend 的 Docker Desktop。宿主工作区需要放在 Docker Desktop 可以共享给容器的位置。不要假设 Linux `$HOME` 表达式在每个 Windows shell 中含义相同；通过选定的调用方或客户端提供源码挂载。
 
 ## 启动基础环境
 
@@ -21,8 +19,7 @@ docker compose up -d
 docker compose exec devbox zsh
 ```
 
-Compose service 会启动一个空闲容器。它不会 clone 项目，也不会选择项目工作区，
-这是有意的边界。
+Compose service 会启动一个空闲容器。它不会 clone 项目，也不会选择项目工作区，这是有意的边界。
 
 停止容器但保留持久化状态：
 
@@ -40,32 +37,26 @@ docker compose down
 
 ## 提供项目源码
 
-调用方负责提供源码。使用个人工作区约定时，可以先把项目 clone 到宿主机
-`~/items`，再挂载到容器的 `/home/dev/items`：
+调用方负责提供源码。使用个人工作区约定时，可以先把项目 clone 到宿主机 `~/items`，再挂载到容器的 `/home/dev/items`：
 
 ```text
 ~/items/<project>  ->  /home/dev/items/<project>
 ```
 
-之后由调用方把需要开发的项目目录设置为 IDE 工作区。基础 `dev-env` Compose
-文件不会写死该挂载，因此也可以配合其他源码提供方式使用。
+之后由调用方把需要开发的项目目录设置为 IDE 工作区。基础 `dev-env` Compose 文件不会写死该挂载，因此也可以配合其他源码提供方式使用。
 
 ## 首次应用 dotfiles
 
-镜像包含 `chezmoi`，但 `docker build` 阶段绝不会访问私有 dotfiles 仓库。
-源码仓库在容器内可用后，显式初始化并应用：
+镜像包含 `chezmoi`，但 `docker build` 阶段绝不会访问私有 dotfiles 仓库。源码仓库在容器内可用后，显式初始化并应用：
 
 ```sh
 chezmoi init --source "$HOME/items/dotfiles"
 chezmoi apply --source "$HOME/items/dotfiles"
 ```
 
-如果 dotfiles 源码是私有仓库且没有通过挂载目录提供，需要先配置 Git 或 SSH
-认证，再执行 `chezmoi init`。不要把 token 写进 `Dockerfile`、Compose 文件或
-Git 仓库。
+如果 dotfiles 源码是私有仓库且没有通过挂载目录提供，需要先配置 Git 或 SSH 认证，再执行 `chezmoi init`。不要把 token 写进 `Dockerfile`、Compose 文件或 Git 仓库。
 
-已有 dotfiles 仓库继续负责 `.zshrc`、`.zshenv`、插件、alias、prompt 配置和
-`mise activate`。
+已有 dotfiles 仓库继续负责 `.zshrc`、`.zshenv`、插件、alias、prompt 配置和 `mise activate`。
 
 ## 使用 `mise` 管理项目工具
 
@@ -83,9 +74,7 @@ mise trust
 mise install
 ```
 
-只信任你理解其来源和命令的配置。基础镜像必须确保 `mise` 的 data、config、
-cache 和 state 目录都可由 `dev` 写入；这些目录放在 `/home/dev` 下更合适，
-因为该 home 是持久化 volume。
+只信任你理解其来源和命令的配置。基础镜像必须确保 `mise` 的 data、config、cache 和 state 目录都可由 `dev` 写入；这些目录放在 `/home/dev` 下更合适，因为该 home 是持久化 volume。
 
 ## 验证清单
 
@@ -95,7 +84,8 @@ cache 和 state 目录都可由 `dev` 写入；这些目录放在 `/home/dev` �
 docker compose config --quiet
 docker compose build
 docker compose up -d
-docker compose exec -T devbox sh -lc 'id; pwd; command -v mise; command -v chezmoi; zsh --version'
+docker compose exec -T devbox sh -lc \
+  'id; pwd; command -v mise; command -v chezmoi; zsh --version'
 ```
 
 另外确认：
@@ -112,28 +102,23 @@ docker compose exec -T devbox sh -lc 'id; pwd; command -v mise; command -v chezm
 
 ### 在构建镜像时安装私有 dotfiles
 
-这会失败，因为构建镜像时没有用户的 GitHub 或 SSH 凭据。镜像中只安装
-`chezmoi`，等运行时凭据或源码挂载可用后再应用 dotfiles。
+这会失败，因为构建镜像时没有用户的 GitHub 或 SSH 凭据。镜像中只安装 `chezmoi`，等运行时凭据或源码挂载可用后再应用 dotfiles。
 
 ### 把 `mise` 状态写入 root 拥有的系统目录
 
-以 root 安装二进制，不代表非 root 的 `dev` 用户可以写入 data 和 cache。
-运行时目录应放在 `/home/dev` 下，并且每次修改镜像后都要以 `dev` 身份验证。
+以 root 安装二进制，不代表非 root 的 `dev` 用户可以写入 data 和 cache。运行时目录应放在 `/home/dev` 下，并且每次修改镜像后都要以 `dev` 身份验证。
 
 ### 把容器路径当成宿主路径
 
-JetBrains Trusted Locations 在宿主客户端配置。应该信任宿主路径 `~/items`；
-在容器内信任 `/home/dev/items` 不会配置宿主 IDE。
+JetBrains Trusted Locations 在宿主客户端配置。应该信任宿主路径 `~/items`；在容器内信任 `/home/dev/items` 不会配置宿主 IDE。
 
 ### 让基础镜像绑定某一个项目
 
-不要仅仅因为当前项目需要，就把语言运行时、项目依赖、源码挂载或固定工作区
-加入基础镜像。把它放到项目仓库或调用方配置中。
+不要仅仅因为当前项目需要，就把语言运行时、项目依赖、源码挂载或固定工作区加入基础镜像。把它放到项目仓库或调用方配置中。
 
 ### 依赖 `latest`
 
-固定镜像使用的 `mise` 和 `chezmoi` 版本。版本升级要作为环境变更审查，修改
-版本参数后重新构建。
+固定镜像使用的 `mise` 和 `chezmoi` 版本。版本升级要作为环境变更审查，修改版本参数后重新构建。
 
 ## 升级流程
 

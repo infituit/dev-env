@@ -2,23 +2,19 @@
 
 ## 目标
 
-`dev-env` 是个人使用、可复用的开发环境。它不是项目模板，也不决定要打开
-哪个源码仓库。调用方可以使用 Docker Compose、Dev Containers 客户端、
-JetBrains Gateway 或其他客户端来提供源码并选择工作区。
+`dev-env` 是个人使用、可复用的开发环境。它不是项目模板，也不决定要打开哪个源码仓库。调用方可以使用 Docker Compose、Dev Containers 客户端、JetBrains Gateway 或其他客户端来提供源码并选择工作区。
 
 设计上要把容器基础层、个人偏好和项目配置分开：
 
-| 层           | 负责方                          | 职责                                                         |
-| ------------ | ------------------------------- | ------------------------------------------------------------ |
-| 容器基础层   | `dev-env`                       | OS 镜像、`dev` 用户、基础 CLI 工具、`zsh`、`mise`、`chezmoi` |
-| 个人偏好层   | 已有 dotfiles 仓库              | shell 启动、alias、prompt、插件、Git 偏好、`mise activate`   |
-| 项目环境层   | 各项目仓库                      | `mise.toml`、`mise.lock`、语言版本、项目任务和依赖           |
-| Agent 环境层 | `ai-agent-config`               | agent 规则、skills、MCP servers、权限和 agent 状态           |
-| 客户端集成层 | JetBrains、VS Code 或其他调用方 | 源码位置、工作区、IDE 设置和信任目录                         |
+| 层 | 负责方 | 职责 |
+| --- | --- | --- |
+| 容器基础层 | `dev-env` | OS 镜像、`dev` 用户、基础 CLI 工具、`zsh`、`mise`、`chezmoi` |
+| 个人偏好层 | 已有 dotfiles 仓库 | shell 启动、alias、prompt、插件、Git 偏好、`mise activate` |
+| 项目环境层 | 各项目仓库 | `mise.toml`、`mise.lock`、语言版本、项目任务和依赖 |
+| Agent 环境层 | `ai-agent-config` | agent 规则、skills、MCP servers、权限和 agent 状态 |
+| 客户端集成层 | JetBrains、VS Code 或其他调用方 | 源码位置、工作区、IDE 设置和信任目录 |
 
-不要因为某个项目需要某个工具，就把它直接放入基础镜像。不要把个人
-dotfiles 内容复制到本仓库。只有当 agent 层的运行契约明确且可以独立验证
-时，才增加 agent 集成。
+不要因为某个项目需要某个工具，就把它直接放入基础镜像。不要把个人 dotfiles 内容复制到本仓库。只有当 agent 层的运行契约明确且可以独立验证时，才增加 agent 集成。
 
 ## 仓库组件
 
@@ -34,8 +30,7 @@ dotfiles 内容复制到本仓库。只有当 agent 层的运行契约明确且�
 6. `chezmoi` 层只安装 dotfiles 管理器，不在构建镜像时访问私有仓库。
 7. 后续 Docker 访问、agent 配置或语言运行时必须保持独立分层。
 
-有稳定发布资产时，应固定网络下载的版本。版本参数放在文件顶部，便于
-审查和升级。
+有稳定发布资产时，应固定网络下载的版本。版本参数放在文件顶部，便于审查和升级。
 
 ### `docker-compose.yml`
 
@@ -47,15 +42,11 @@ Compose 定义一个长期运行的服务：
 - home volume：`personal-devbox-home`，挂载到 `/home/dev`
 - 默认命令：`sleep infinity`
 
-Compose **不会**定义宿主源码 bind mount、`working_dir` 或固定的
-`workspaceFolder`。源码获取和工作区位置属于调用方，这样可复用环境就不会
-假设项目如何 clone 或打开。
+Compose **不会**定义宿主源码 bind mount、`working_dir` 或固定的 `workspaceFolder`。源码获取和工作区位置属于调用方，这样可复用环境就不会假设项目如何 clone 或打开。
 
 ### `.devcontainer/devcontainer.json`
 
-该文件提供 Dev Containers 兼容性和 JetBrains 定制。它指向 Compose service，
-并设置 `remoteUser` 为 `dev`。可以添加 Dev Containers 实现支持的客户端设置
-或插件，但不能让它变成第二套容器运行时真相。
+该文件提供 Dev Containers 兼容性和 JetBrains 定制。它指向 Compose service，并设置 `remoteUser` 为 `dev`。可以添加 Dev Containers 实现支持的客户端设置或插件，但不能让它变成第二套容器运行时真相。
 
 ## 路径契约
 
@@ -66,21 +57,15 @@ Compose **不会**定义宿主源码 bind mount、`working_dir` 或固定的
 容器内：/home/dev/items
 ```
 
-这个映射是集成约定，不是基础 Compose 文件的职责。需要使用该约定的调用方
-必须自己提供 bind mount 并选择工作区。例如，可以把包含 `dev-env` 的源码
-目录映射为 `/home/dev/items/dev-env`，然后将该路径作为工作区打开。
+这个映射是集成约定，不是基础 Compose 文件的职责。需要使用该约定的调用方必须自己提供 bind mount 并选择工作区。例如，可以把包含 `dev-env` 的源码目录映射为 `/home/dev/items/dev-env`，然后将该路径作为工作区打开。
 
-容器 home 固定为 `/home/dev`。本仓库不能假定当前源码仓库一定是
-`/home/dev/items/dev-env`，因为同一个环境还要承载其他项目。
+容器 home 固定为 `/home/dev`。本仓库不能假定当前源码仓库一定是 `/home/dev/items/dev-env`，因为同一个环境还要承载其他项目。
 
 ## 持久化
 
-`/home/dev` 持久化后，shell 状态、`mise` 状态和缓存、chezmoi 配置以及其他
-用户级开发状态可以在容器重建后保留。
+`/home/dev` 持久化后，shell 状态、`mise` 状态和缓存、chezmoi 配置以及其他用户级开发状态可以在容器重建后保留。
 
-这个 volume 只是便利状态，不是项目源码的唯一来源。真实项目源码必须留在
-调用方提供的工作区或宿主机仓库中。不能让可删除的 home volume 成为项目数据
-的唯一备份。
+这个 volume 只是便利状态，不是项目源码的唯一来源。真实项目源码必须留在调用方提供的工作区或宿主机仓库中。不能让可删除的 home volume 成为项目数据的唯一备份。
 
 ## 扩展规则
 
