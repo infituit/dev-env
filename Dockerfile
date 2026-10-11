@@ -1,10 +1,12 @@
+ARG MISE_VERSION=2026.9.11
+
+FROM ghcr.io/jdx/mise:${MISE_VERSION} AS mise-image
+
 FROM mcr.microsoft.com/devcontainers/base:bookworm
 
 ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=${USER_UID}
-ARG MISE_VERSION=2026.9.11
-ARG OH_MY_ZSH_REF=master
 
 ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/${USERNAME} \
@@ -15,7 +17,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     MISE_INSTALL_PATH=/usr/local/bin/mise \
     SHELL=/usr/bin/zsh \
     USER=${USERNAME} \
-    ZSH=/usr/local/share/oh-my-zsh \
     PATH=/opt/mise/shims:/usr/local/bin:${PATH}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -24,6 +25,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
+        autojump \
         ca-certificates \
         curl \
         fd-find \
@@ -58,17 +60,9 @@ RUN if getent group "${USER_GID}" >/dev/null; then \
     && mkdir -p "/home/${USERNAME}/items" "/home/${USERNAME}/.dev-env/state" \
     && chown -R "${USER_UID}:${USER_GID}" "/home/${USERNAME}"
 
-# Shell layer: zsh baseline only. Personal shell contents come from dotfiles later.
-RUN mkdir -p "${ZSH}" \
-    && curl --fail --show-error --silent --location \
-        "https://github.com/ohmyzsh/ohmyzsh/archive/refs/heads/${OH_MY_ZSH_REF}.tar.gz" \
-        | tar --extract --gzip --strip-components=1 --directory "${ZSH}" \
-    && chmod -R a+rX "${ZSH}"
-
 # Project tool manager layer: project runtimes and tasks belong in per-repo mise.toml.
-RUN curl --proto '=https' --proto-redir '=https' \
-        --fail --show-error --silent --location https://mise.run | sh \
-    && mise --version
+COPY --from=mise-image /usr/local/bin/mise /usr/local/bin/mise
+RUN mise --version
 
 # Dotfiles manager layer: install chezmoi only; applying private dotfiles is first-run state.
 RUN sh -c "$(curl -fsLS https://get.chezmoi.io)" -- -b /usr/local/bin \
