@@ -39,6 +39,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         curl \
         fd-find \
         git \
+        iputils-ping \
         jq \
         less \
         openssh-client \
