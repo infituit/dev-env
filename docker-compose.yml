@@ -15,6 +15,9 @@ services:
     stdin_open: true
     tty: true
     user: dev
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - personal-devbox-home:/home/dev
 

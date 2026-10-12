@@ -18,6 +18,7 @@
 - 可配置 UID 和 GID 的非 root `dev` 用户。
 - `zsh`、常用命令行工具、`mise` 和 `chezmoi`。
 - 通过 Compose 持久化 `/home/dev`。
+- 通过可选的 `.env` 文件注入个人环境变量，仓库只提交 `.env.example`。
 - JetBrains Dev Container 元数据。
 
 本仓库不负责：

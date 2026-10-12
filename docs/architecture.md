@@ -39,10 +39,15 @@ Compose 定义一个长期运行的服务：
 - service：`devbox`
 - container：`personal-devbox`
 - 用户：`dev`
+- 环境变量：通过可选的 `.env` 文件注入，仓库只提交 `.env.example`
 - home volume：`personal-devbox-home`，挂载到 `/home/dev`
 - 默认命令：`sleep infinity`
 
 Compose **不会**定义宿主源码 bind mount、`working_dir` 或固定的 `workspaceFolder`。源码获取和工作区位置属于调用方，这样可复用环境就不会假设项目如何 clone 或打开。
+
+### `.env` 与 `.env.example`
+
+个人凭据和机器相关变量放在 `.env` 中，`.env` 不纳入 git 管理。仓库只提供 `.env.example` 作为模板，记录变量名和用途。Compose 用 `env_file` 的 `required: false` 读取 `.env`，因此没有该文件时环境仍可构建和启动。secret 绝不能进入提交到 git 的文件。
 
 ### `.devcontainer/devcontainer.json`
 

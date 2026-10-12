@@ -35,6 +35,20 @@ docker compose down
 
 除非确实要删除可重建的 home volume，否则不要使用 `docker compose down -v`。
 
+## 注入环境变量
+
+个人凭据和机器相关变量通过 `.env` 文件注入容器，`.env` 不纳入 git 管理，本仓库只提供 `.env.example` 作为模板：
+
+```sh
+cp .env.example .env
+```
+
+`docker-compose.yml` 通过 `env_file` 读取 `.env`，并设置 `required: false`，所以缺少 `.env` 时仍可正常构建和启动。变量会作为容器进程的环境变量存在，容器内的 shell、`mise` 任务和工具都能读取。
+
+也可以继续用 `.env` 为 Compose 提供 `USER_UID`、`USER_GID` 等构建参数。
+
+不要在 `.env.example`、Compose 文件、Dockerfile 或任何提交到 git 的文件中写入真实 secret。
+
 ## 提供项目源码
 
 调用方负责提供源码。使用个人工作区约定时，可以先把项目 clone 到宿主机 `~/items`，再挂载到容器的 `/home/dev/items`：
@@ -95,6 +109,7 @@ docker compose exec -T devbox sh -lc \
 - `mise` 的 data、config、cache 和 state 目录可写。
 - 不访问私有 dotfiles 仓库时，`chezmoi` 也可以正常使用。
 - 调用方提供的项目路径在容器内的预期位置可见。
+- `.env` 中的变量在容器内可用，且缺少 `.env` 时构建和启动不报错。
 - 重建容器不会删除持久化 home volume。
 - JetBrains 可以以 `dev` 用户连接 Compose service。
 
