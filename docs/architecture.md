@@ -6,13 +6,13 @@
 
 设计上要把容器基础层、个人偏好和项目配置分开：
 
-| 层 | 负责方 | 职责 |
-| --- | --- | --- |
-| 容器基础层 | `dev-env` | OS 镜像、`dev` 用户、基础 CLI 工具、`zsh`、`mise`、`chezmoi` |
-| 个人偏好层 | 已有 dotfiles 仓库 | shell 启动、alias、prompt、插件、Git 偏好、`mise activate` |
-| 项目环境层 | 各项目仓库 | `mise.toml`、`mise.lock`、语言版本、项目任务和依赖 |
-| Agent 环境层 | `ai-agent-config` | agent 规则、skills、MCP servers、权限和 agent 状态 |
-| 客户端集成层 | JetBrains、VS Code 或其他调用方 | 源码位置、工作区、IDE 设置和信任目录 |
+| 层           | 负责方                          | 职责                                                         |
+| ------------ | ------------------------------- | ------------------------------------------------------------ |
+| 容器基础层   | `dev-env`                       | OS 镜像、`dev` 用户、基础 CLI 工具、`zsh`、`mise`、`chezmoi` |
+| 个人偏好层   | 已有 dotfiles 仓库              | shell 启动、alias、prompt、插件、Git 偏好、`mise activate`   |
+| 项目环境层   | 各项目仓库                      | `mise.toml`、`mise.lock`、语言版本、项目任务和依赖           |
+| Agent 环境层 | `ai-agent-config`               | agent 规则、skills、MCP servers、权限和 agent 状态           |
+| 客户端集成层 | JetBrains、VS Code 或其他调用方 | 源码位置、工作区、IDE 设置和信任目录                         |
 
 不要因为某个项目需要某个工具，就把它直接放入基础镜像。不要把个人 dotfiles 内容复制到本仓库。只有当 agent 层的运行契约明确且可以独立验证时，才增加 agent 集成。
 
@@ -34,7 +34,7 @@
 
 ### `docker-compose.yml`
 
-Compose 定义一个长期运行的服务：
+Compose 定义一个长期运行的开发容器和一个 Tailscale sidecar：
 
 - service：`devbox`
 - container：`personal-devbox`
@@ -42,6 +42,15 @@ Compose 定义一个长期运行的服务：
 - 环境变量：通过可选的 `.env` 文件注入，仓库只提交 `.env.example`
 - home volume：`personal-devbox-home`，挂载到 `/home/dev`
 - 默认命令：`sleep infinity`
+- service：`tailscale`
+- container：`personal-devbox-tailscale`
+- Tailscale 状态：只保存在容器生命周期内的 `tmpfs`
+- `devbox` 通过 `network_mode: service:tailscale` 使用 Tailscale 的网络命名空间
+- Tailscale 使用 `NET_ADMIN`、`NET_RAW` 和 `/dev/net/tun` 提供内核网络模式
+
+`TS_AUTHKEY` 必须来自 Tailscale 管理控制台创建的可重复使用、临时
+(`Reusable` + `Ephemeral`) auth key。临时节点离线后由 Tailscale 自动清理；
+Compose 不持久化 Tailscale 节点身份，因此重建环境会注册一个新的临时节点。
 
 Compose **不会**定义宿主源码 bind mount、`working_dir` 或固定的 `workspaceFolder`。源码获取和工作区位置属于调用方，这样可复用环境就不会假设项目如何 clone 或打开。
 

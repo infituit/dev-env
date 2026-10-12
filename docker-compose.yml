@@ -1,6 +1,25 @@
 name: personal-devbox
 
 services:
+  tailscale:
+    container_name: personal-devbox-tailscale
+    image: tailscale/tailscale:v1.102.5
+    hostname: personal-devbox
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_AUTH_ONCE: "false"
+      TS_USERSPACE: "false"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    tmpfs:
+      - /var/lib/tailscale
+
   devbox:
     container_name: personal-devbox
     image: personal-devbox:local
@@ -12,9 +31,12 @@ services:
         USER_UID: ${USER_UID:-1000}
         USER_GID: ${USER_GID:-1000}
     command: sleep infinity
+    depends_on:
+      - tailscale
     stdin_open: true
     tty: true
     user: dev
+    network_mode: service:tailscale
     env_file:
       - path: .env
         required: false

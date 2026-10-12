@@ -14,12 +14,28 @@ Windows 上建议使用带 WSL2 backend 的 Docker Desktop。宿主工作区需�
 在已 clone 的 `dev-env` 仓库中执行：
 
 ```sh
+cp .env.example .env
+# 在 .env 中填写 TS_AUTHKEY
 docker compose build
 docker compose up -d
 docker compose exec devbox zsh
 ```
 
-Compose service 会启动一个空闲容器。它不会 clone 项目，也不会选择项目工作区，这是有意的边界。
+在 Tailscale 管理控制台创建 auth key 时，同时启用 `Reusable` 和
+`Ephemeral`，再将 key 填入 `.env` 的 `TS_AUTHKEY`。这会让临时 devbox
+在离线后自动从 tailnet 移除；不要使用普通的持久 auth key。
+
+Compose 会启动一个空闲的 `devbox` 和一个 Tailscale sidecar。`devbox` 与
+sidecar 共享网络命名空间，因此开发容器中的网络请求可以访问 tailnet。
+Tailscale 的状态仅写入 sidecar 的临时文件系统；重建 sidecar 会注册新的
+临时节点。Tailscale CLI 和状态检查在 sidecar 中执行：
+
+```sh
+docker compose exec tailscale tailscale status
+docker compose logs tailscale
+```
+
+Compose service 不会 clone 项目，也不会选择项目工作区，这是有意的边界。
 
 停止容器但保留持久化状态：
 
@@ -110,6 +126,9 @@ docker compose exec -T devbox sh -lc \
 - 不访问私有 dotfiles 仓库时，`chezmoi` 也可以正常使用。
 - 调用方提供的项目路径在容器内的预期位置可见。
 - `.env` 中的变量在容器内可用，且缺少 `.env` 时构建和启动不报错。
+- `tailscale` sidecar 使用 `/dev/net/tun`、`NET_ADMIN` 和 `NET_RAW`，并且
+  `devbox` 使用其网络命名空间。
+- 使用 `Reusable` + `Ephemeral` auth key 时，Tailscale 节点在离线后自动清理。
 - 重建容器不会删除持久化 home volume。
 - JetBrains 可以以 `dev` 用户连接 Compose service。
 
