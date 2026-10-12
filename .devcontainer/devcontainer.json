@@ -14,7 +14,8 @@
       "plugins": [
         "com.intellij.zh",
         "com.samvtran.plugins.macosforallkeymap",
-        "Key Promoter X"
+        "Key Promoter X",
+        "com.intellij.minimap"
       ]
     }
   }
