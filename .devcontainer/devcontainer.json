@@ -11,7 +11,11 @@
   "shutdownAction": "none",
   "customizations": {
     "jetbrains": {
-      "plugins": ["com.intellij.zh"]
+      "plugins": [
+        "com.intellij.zh",
+        "com.samvtran.plugins.macosforallkeymap",
+        "Key Promoter X"
+      ]
     }
   }
 }
