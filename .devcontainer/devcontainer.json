@@ -15,7 +15,8 @@
         "com.intellij.zh",
         "com.samvtran.plugins.macosforallkeymap",
         "Key Promoter X",
-        "com.intellij.minimap"
+        "com.intellij.minimap",
+        "cn.yiiguxing.plugin.translate"
       ]
     }
   }
