@@ -40,6 +40,8 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      XDG_CONFIG_HOME: /home/dev/.config
     volumes:
       - personal-devbox-home:/home/dev
 
