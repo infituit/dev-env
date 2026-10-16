@@ -6,13 +6,13 @@
 
 设计上要把容器基础层、个人偏好和项目配置分开：
 
-| 层           | 负责方                          | 职责                                                         |
-| ------------ | ------------------------------- | ------------------------------------------------------------ |
-| 容器基础层   | `dev-env`                       | OS 镜像、`dev` 用户、基础 CLI 工具、`zsh`、`mise`、`chezmoi` |
-| 个人偏好层   | 已有 dotfiles 仓库              | shell 启动、alias、prompt、插件、Git 偏好、`mise activate`   |
-| 项目环境层   | 各项目仓库                      | `mise.toml`、`mise.lock`、语言版本、项目任务和依赖           |
-| Agent 环境层 | `ai-agent-config`               | agent 规则、skills、MCP servers、权限和 agent 状态           |
-| 客户端集成层 | JetBrains、VS Code 或其他调用方 | 源码位置、工作区、IDE 设置和信任目录                         |
+| 层           | 负责方                          | 职责                                                                        |
+| ------------ | ------------------------------- | --------------------------------------------------------------------------- |
+| 容器基础层   | `dev-env`                       | OS 镜像、`dev` 用户、基础 CLI 工具、`zsh`、`mise`、`chezmoi`、Docker Engine |
+| 个人偏好层   | 已有 dotfiles 仓库              | shell 启动、alias、prompt、插件、Git 偏好、`mise activate`                  |
+| 项目环境层   | 各项目仓库                      | `mise.toml`、`mise.lock`、语言版本、项目任务和依赖                          |
+| Agent 环境层 | `ai-agent-config`               | agent 规则、skills、MCP servers、权限和 agent 状态                          |
+| 客户端集成层 | JetBrains、VS Code 或其他调用方 | 源码位置、工作区、IDE 设置和信任目录                                        |
 
 不要因为某个项目需要某个工具，就把它直接放入基础镜像。不要把个人 dotfiles 内容复制到本仓库。只有当 agent 层的运行契约明确且可以独立验证时，才增加 agent 集成。
 
@@ -28,7 +28,9 @@
 4. 身份层创建非 root 的 `dev` 用户和持久化 home。
 5. `mise` 层安装项目工具管理器。
 6. `chezmoi` 层只安装 dotfiles 管理器，不在构建镜像时访问私有仓库。
-7. 后续 Docker 访问、agent 配置或语言运行时必须保持独立分层。
+7. Docker 层从官方 Debian 仓库安装固定版本的 Engine、CLI、containerd、Compose 和 Buildx。
+8. 入口脚本启动独立 `dockerd`，等待就绪后执行用户命令；停止时清理子进程。
+9. 后续 agent 配置或语言运行时必须保持独立分层。
 
 有稳定发布资产时，应固定网络下载的版本。版本参数放在文件顶部，便于审查和升级。
 
@@ -41,6 +43,9 @@ Compose 定义一个长期运行的开发容器和一个 Tailscale sidecar：
 - 用户：`dev`
 - 环境变量：通过可选的 `.env` 文件注入，仓库只提交 `.env.example`
 - home volume：`personal-devbox-home`，挂载到 `/home/dev`
+- Docker volumes：`personal-devbox-docker` 和 `personal-devbox-containerd`，分别挂载到 `/var/lib/docker` 和 `/var/lib/containerd`
+- `privileged: true` 支持容器内 Docker Engine；不挂载宿主机 Docker socket
+- 日常命令以 `dev` 运行，入口通过 sudo 启动 root daemon；健康检查确认 Docker 可用
 - 默认命令：`sleep infinity`
 - service：`tailscale`
 - container：`personal-devbox-tailscale`
@@ -76,6 +81,9 @@ Compose **不会**定义宿主源码 bind mount、`working_dir` 或固定的 `wo
 容器 home 固定为 `/home/dev`。本仓库不能假定当前源码仓库一定是 `/home/dev/items/dev-env`，因为同一个环境还要承载其他项目。
 
 ## 持久化
+
+Docker 的镜像、容器和 volumes 由独立的 Docker data volumes 持久化。
+容器内 bind mount 使用 devbox 路径；端口发布到 devbox 与 Tailscale 共享的网络。
 
 `/home/dev` 持久化后，shell 状态、`mise` 状态和缓存、chezmoi 配置以及其他用户级开发状态可以在容器重建后保留。
 
