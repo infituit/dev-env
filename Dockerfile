@@ -2,6 +2,10 @@
 
 ARG MISE_VERSION=2026.9.11
 ARG CHEZMOI_VERSION=2.73.0
+ARG DOCKER_VERSION=29.9.1
+ARG CONTAINERD_VERSION=2.2.6
+ARG BUILDX_VERSION=0.38.0
+ARG COMPOSE_VERSION=5.6.0
 
 FROM ghcr.io/jdx/mise:${MISE_VERSION} AS mise-image
 
@@ -11,6 +15,10 @@ ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=${USER_UID}
 ARG CHEZMOI_VERSION
+ARG DOCKER_VERSION
+ARG CONTAINERD_VERSION
+ARG BUILDX_VERSION
+ARG COMPOSE_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/${USERNAME} \
@@ -50,6 +58,29 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         vim \
         zsh
 
+# Docker Engine runs as an independent daemon inside the privileged devbox.
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
+        https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+    && chmod a+r /etc/apt/keyrings/docker.asc \
+    && printf '%s\n' \
+        'Types: deb' \
+        'URIs: https://download.docker.com/linux/debian' \
+        'Suites: bookworm' \
+        'Components: stable' \
+        'Architectures: amd64' \
+        'Signed-By: /etc/apt/keyrings/docker.asc' \
+        > /etc/apt/sources.list.d/docker.sources
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+        docker-ce="5:${DOCKER_VERSION}-1~debian.12~bookworm" \
+        docker-ce-cli="5:${DOCKER_VERSION}-1~debian.12~bookworm" \
+        containerd.io="${CONTAINERD_VERSION}-1~debian.12~bookworm" \
+        docker-buildx-plugin="${BUILDX_VERSION}-1~debian.12~bookworm" \
+        docker-compose-plugin="${COMPOSE_VERSION}-1~debian.12~bookworm"
+
 # Identity and home: keep the persistent container home writable by the dev user.
 RUN if getent group "${USER_GID}" >/dev/null; then \
         EXISTING_GROUP="$(getent group "${USER_GID}" | cut -d: -f1)"; \
@@ -66,6 +97,7 @@ RUN if getent group "${USER_GID}" >/dev/null; then \
     fi \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}" \
     && chmod 0440 "/etc/sudoers.d/${USERNAME}" \
+    && usermod --append --groups docker "${USERNAME}" \
     && mkdir -p "/home/${USERNAME}/items" "/home/${USERNAME}/.dev-env/state" \
     && chown -R "${USER_UID}:${USER_GID}" "/home/${USERNAME}"
 
@@ -80,9 +112,14 @@ RUN curl --fail --show-error --silent --location --retry 3 --retry-delay 2 --htt
     && chmod +x /usr/local/bin/chezmoi \
     && chezmoi --version
 
-# Future layers stay separate: docker access, AI agent config, and language runtimes.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh \
+    && docker --version \
+    && docker compose version \
+    && docker buildx version
 
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["sleep", "infinity"]

@@ -35,6 +35,32 @@ docker compose exec tailscale tailscale status
 docker compose logs tailscale
 ```
 
+`devbox` 使用 `privileged: true`，入口脚本自动启动独立的 Docker Engine。
+日常 shell 仍以 `dev` 运行，可以直接使用 `docker`、`docker compose` 和 Buildx。
+Docker 使用本容器的 Unix socket，不挂载宿主机 Docker socket。
+
+在容器内验证：
+
+```sh
+docker info
+docker compose version
+docker buildx version
+docker run --rm hello-world
+docker run --rm -v "$PWD:/workspace:ro" alpine ls /workspace
+docker run -d --name docker-smoke -p 8080:80 nginx:alpine
+curl --fail http://localhost:8080
+docker rm -f docker-smoke
+```
+
+bind mount 的源路径是 devbox 内路径。发布的端口可以在 devbox 内通过
+`localhost` 访问；远程通过 Tailscale 地址访问，宿主机 localhost 不会自动转发。
+由于 devbox 与 Tailscale 共享网络，避免发布到 Tailscale 已使用的端口。
+
+Docker 状态独立保存在 `/var/lib/docker` 和 `/var/lib/containerd` 对应的
+`personal-devbox-docker`、`personal-devbox-containerd` volumes 中。
+`docker compose down` 保留这些状态；`docker compose down -v` 会连同 home
+一起删除。启动失败时使用 `docker compose logs devbox` 查看 daemon 日志。
+
 Compose service 不会 clone 项目，也不会选择项目工作区，这是有意的边界。
 
 停止容器但保留持久化状态：
@@ -43,13 +69,13 @@ Compose service 不会 clone 项目，也不会选择项目工作区，这是有
 docker compose stop
 ```
 
-删除容器但保留 home volume：
+删除容器但保留 home 和 Docker volumes：
 
 ```sh
 docker compose down
 ```
 
-除非确实要删除可重建的 home volume，否则不要使用 `docker compose down -v`。
+除非确实要删除 home 和全部 Docker 数据，否则不要使用 `docker compose down -v`。
 
 ## 注入环境变量
 
@@ -120,7 +146,8 @@ docker compose exec -T devbox sh -lc \
 
 另外确认：
 
-- 进程以 `dev` 而不是 `root` 运行。
+- 日常命令以 `dev` 运行；入口管理进程和 `dockerd` 以 root 运行。
+- `dev` 可以直接执行 `docker info`、Compose 和 Buildx，嵌套容器可启动。
 - `/home/dev` 可由 `dev` 写入。
 - `mise` 的 data、config、cache 和 state 目录可写。
 - 不访问私有 dotfiles 仓库时，`chezmoi` 也可以正常使用。
@@ -130,6 +157,7 @@ docker compose exec -T devbox sh -lc \
   `devbox` 使用其网络命名空间。
 - 使用 `Reusable` + `Ephemeral` auth key 时，Tailscale 节点在离线后自动清理。
 - 重建容器不会删除持久化 home volume。
+- 重建容器不会删除 Docker data volumes，已有镜像和 volumes 仍可使用。
 - JetBrains 可以以 `dev` 用户连接 Compose service。
 
 ## 已知坑
