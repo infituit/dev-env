@@ -91,16 +91,41 @@ cp .env.example .env
 
 也可以继续用 `.env` 为 Compose 提供 `USER_UID`、`USER_GID` 等构建参数。
 
-`XDG_CONFIG_HOME` 默认设置为 `/home/dev/.config`。如果直接使用 Compose，
-可以在 `.env` 中覆盖它，或在执行命令时临时覆盖：
+`/home/dev` 由 Compose 持久化，因此默认位于该目录下的用户配置（包括
+`/home/dev/.config`）会随 home volume 保留。重建容器后无需单独设置
+`XDG_CONFIG_HOME`。
 
-```sh
-XDG_CONFIG_HOME=/home/dev/.config docker compose up -d
+### Docker 凭据管理
+
+镜像包含 `pass`、GnuPG 和 `docker-credential-pass`。入口脚本会在持久化的
+`/home/dev/.docker/config.json` 中设置：
+
+```json
+{
+  "credsStore": "pass"
+}
 ```
 
-通过 JetBrains Dev Container 连接时，`.devcontainer/devcontainer.json` 会再次以
-容器级环境变量声明该默认值，避免 IDE 连接阶段覆盖 Compose 中的设置。修改该值后
-需要重建并重新创建容器。
+首次使用前，在容器内创建或导入一个 GPG 密钥，并初始化 `pass`：
+
+```sh
+gpg --full-generate-key
+gpg --list-secret-keys --keyid-format=long
+pass init <GPG_KEY_ID>
+```
+
+然后使用 Docker Hub 的设备登录或 registry token 登录：
+
+```sh
+docker login
+printf '%s\n' "$REGISTRY_TOKEN" | docker login registry.example.com \
+  --username USERNAME --password-stdin
+```
+
+登录前如果凭据曾经写入过 `config.json`，先执行 `docker logout`，再重新登录，
+使凭据迁移到 `pass`。GPG 密钥和 `pass` 数据位于持久化的 home volume 中；不要
+在 Dockerfile、Compose 文件或 Git 仓库中写入密钥、密码或 token。`pass` helper
+需要在容器内的 `PATH` 中，Docker 会按 `store`、`get`、`erase` 协议调用它。
 
 不要在 `.env.example`、Compose 文件、Dockerfile 或任何提交到 git 的文件中写入真实 secret。
 

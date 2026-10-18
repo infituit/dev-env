@@ -14,6 +14,24 @@ install -d --owner="${DEVBOX_USER:-dev}" --group="${DEVBOX_USER:-dev}" \
 install --owner="${DEVBOX_USER:-dev}" --group="${DEVBOX_USER:-dev}" \
 	/usr/local/share/dev-env/zshrc "/home/${DEVBOX_USER:-dev}/.zshrc"
 
+docker_config_dir="/home/${DEVBOX_USER:-dev}/.docker"
+docker_config="${docker_config_dir}/config.json"
+install -d --owner="${DEVBOX_USER:-dev}" --group="${DEVBOX_USER:-dev}" \
+	"${docker_config_dir}"
+if [[ ! -e "${docker_config}" ]]; then
+	printf '{\n  "credsStore": "pass"\n}\n' >"${docker_config}"
+	chown "${DEVBOX_USER:-dev}:${DEVBOX_USER:-dev}" "${docker_config}"
+elif jq -e . "${docker_config}" >/dev/null 2>&1; then
+	tmp_config="$(mktemp)"
+	jq '.credsStore = "pass"' "${docker_config}" >"${tmp_config}"
+	install --owner="${DEVBOX_USER:-dev}" --group="${DEVBOX_USER:-dev}" \
+		"${tmp_config}" "${docker_config}"
+	rm -f "${tmp_config}"
+else
+	echo "Docker config is not valid JSON: ${docker_config}" >&2
+	exit 1
+fi
+
 cleanup() {
 	trap '' TERM INT
 	kill -TERM "${COMMAND_PID:-}" "${DOCKERD_PID:-}" 2>/dev/null || true
