@@ -1,0 +1,37 @@
+name: PR Title Lint
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+    branches:
+      - master
+
+permissions:
+  pull-requests: write
+
+jobs:
+  check-pr-title:
+    runs-on: self-hosted
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: morrisoncole/pr-lint-action@v1.7.1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          title-regex: "^(feat|fix|docs|style|refactor|perf|test|chore):\\s[a-zA-Z0-9\\s,.\\-_()]+\\s--issue=#[1-9][0-9]*(,\\s?#[1-9][0-9]*)*\\s*$"
+          on-failed-regex-fail-action: true
+          on-failed-regex-create-review: true
+          on-failed-regex-request-changes: true
+          on-failed-regex-comment: |
+            ## PR 标题不符合规范
+
+            请修改为以下格式，描述内容必须使用英文：
+
+            `<type>: <English subject> --issue=#N`
+
+            支持的 type：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`chore`。
+            多个 Issue 使用逗号分隔，例如：`fix: handle invalid response --issue=#12, #34`
+
+            Issue 编号必须是真实存在的正整数。
+          on-succeeded-regex-dismiss-review-comment: "PR 标题规范检查通过"

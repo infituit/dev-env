@@ -9,6 +9,7 @@
 1. [架构说明](architecture.md)：职责、路径和边界。
 2. [操作指南](operations.md)：启动环境、提供源码、验证和排错。
 3. [JetBrains 配置](jetbrains.md)：配置 IntelliJ 系列 IDE。
+4. [Git 协作规范](developer/git-contribution.md)：分支、提交、Issue、PR 和验证要求。
 
 ## 当前范围
 
