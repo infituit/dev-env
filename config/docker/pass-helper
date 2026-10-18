@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+store_root="docker-credential-pass"
+registry_key() {
+	printf '%s/%s' "${store_root}" "$(printf '%s' "$1" | tr '/:' '__')"
+}
+
+case "${1:-}" in
+store)
+	payload="$(cat)"
+	server_url="$(jq -er '.ServerURL' <<<"${payload}")"
+	printf '%s' "${payload}" | pass insert --force --multiline "$(registry_key "${server_url}")" >/dev/null
+	;;
+get)
+	server_url="$(cat)"
+	pass show "$(registry_key "${server_url}")" | jq -ce '{Username,Secret}'
+	;;
+erase)
+	server_url="$(cat)"
+	pass rm --force "$(registry_key "${server_url}")" >/dev/null
+	;;
+*)
+	echo "usage: $0 {store|get|erase}" >&2
+	exit 1
+	;;
+esac

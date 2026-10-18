@@ -53,10 +53,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         curl \
         fd-find \
         git \
+        gnupg \
         iputils-ping \
         jq \
         less \
         openssh-client \
+        pass \
         ripgrep \
         sudo \
         tar \
@@ -129,6 +131,7 @@ RUN git clone --depth 1 https://github.com/ohmyzsh/ohmyzsh.git /usr/local/share/
     && git fetch --depth 1 origin "${ZSH_SYNTAX_HIGHLIGHTING_COMMIT}" \
     && git checkout --detach "${ZSH_SYNTAX_HIGHLIGHTING_COMMIT}"
 COPY config/zsh/.zshrc /usr/local/share/dev-env/zshrc
+COPY config/docker/pass-helper /usr/local/bin/docker-credential-pass
 
 # Dotfiles manager layer: install chezmoi for non-shell personal files.
 RUN curl --fail --show-error --silent --location --retry 3 --retry-delay 2 --http1.1 \
@@ -138,7 +141,7 @@ RUN curl --fail --show-error --silent --location --retry 3 --retry-delay 2 --htt
     && chezmoi --version
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh \
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh /usr/local/bin/docker-credential-pass \
     && docker --version \
     && docker compose version \
     && docker buildx version
