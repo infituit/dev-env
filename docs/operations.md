@@ -91,6 +91,17 @@ cp .env.example .env
 
 也可以继续用 `.env` 为 Compose 提供 `USER_UID`、`USER_GID` 等构建参数。
 
+`XDG_CONFIG_HOME` 默认设置为 `/home/dev/.config`。如果直接使用 Compose，
+可以在 `.env` 中覆盖它，或在执行命令时临时覆盖：
+
+```sh
+XDG_CONFIG_HOME=/home/dev/.config docker compose up -d
+```
+
+通过 JetBrains Dev Container 连接时，`.devcontainer/devcontainer.json` 会再次以
+容器级环境变量声明该默认值，避免 IDE 连接阶段覆盖 Compose 中的设置。修改该值后
+需要重建并重新创建容器。
+
 不要在 `.env.example`、Compose 文件、Dockerfile 或任何提交到 git 的文件中写入真实 secret。
 
 ## 提供项目源码
