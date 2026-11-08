@@ -11,6 +11,27 @@ install -d --owner="${DEVBOX_USER:-dev}" --group="${DEVBOX_USER:-dev}" \
 	"/home/${DEVBOX_USER:-dev}/.local" \
 	"/home/${DEVBOX_USER:-dev}/.local/share" \
 	"/home/${DEVBOX_USER:-dev}/.local/state"
+if [[ -n "${DOTFILES_REPO:-}" ]]; then
+	echo 'Syncing dotfiles with chezmoi.'
+	if ! timeout --kill-after=5s 120s runuser --user "${DEVBOX_USER:-dev}" -- \
+		env GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes}" \
+		bash -Eeuo pipefail -c '
+			source_dir="$(chezmoi source-path)"
+			if [[ -e "${source_dir}/.git" ]]; then
+				if [[ "$(git -C "${source_dir}" remote get-url origin)" != "${DOTFILES_REPO}" ]]; then
+					echo "Dotfiles repository differs from the existing chezmoi origin; refusing to switch." >&2
+					exit 1
+				fi
+				chezmoi --no-tty --error-on-conflict update
+			else
+				chezmoi --no-tty --error-on-conflict init --apply -- "${DOTFILES_REPO}"
+			fi
+		' </dev/null; then
+		echo 'Warning: dotfiles sync failed or timed out; continuing startup. Check chezmoi before retrying.' >&2
+	fi
+fi
+
+# Keep the repository-owned shell baseline after personal dotfiles are applied.
 install --owner="${DEVBOX_USER:-dev}" --group="${DEVBOX_USER:-dev}" \
 	/usr/local/share/dev-env/zshrc "/home/${DEVBOX_USER:-dev}/.zshrc"
 
