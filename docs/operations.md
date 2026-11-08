@@ -139,11 +139,33 @@ printf '%s\n' "$REGISTRY_TOKEN" | docker login registry.example.com \
 
 之后由调用方把需要开发的项目目录设置为 IDE 工作区。基础 `dev-env` Compose 文件不会写死该挂载，因此也可以配合其他源码提供方式使用。
 
-## 首次应用 dotfiles
+## 自动同步 dotfiles
 
-镜像在构建阶段固定安装 Oh My Zsh 和两个 shell 插件。容器入口每次启动都会把仓库中的统一 `.zshrc` 同步到持久化 home，因此重建镜像后不会继续使用旧的 shell 配置。
+在 `.env` 中设置采用 chezmoi 格式的仓库地址，即可启用启动时自动同步：
 
-`chezmoi` 仍可用于个人非 shell 文件，但不应覆盖 `.zshrc`、Oh My Zsh 或统一插件配置。源码仓库在容器内可用后，可以显式初始化并应用其他文件：
+```dotenv
+DOTFILES_REPO=https://github.com/USERNAME/dotfiles.git
+```
+
+也可以在执行 Compose 时通过宿主环境变量提供 `DOTFILES_REPO`。不设置或留空时，入口脚本不会执行 dotfiles 同步，也不会访问 dotfiles 仓库。
+
+更新配置后重建镜像并重建容器：
+
+```sh
+docker compose up -d --build --force-recreate devbox
+```
+
+每次容器启动时，入口脚本以 `dev` 用户运行 chezmoi：首次执行 `init --apply`，已有仓库时执行 `update` 拉取并应用配置。源码位置遵循 `chezmoi source-path`，默认是持久化 home 下的 `~/.local/share/chezmoi`，不是将普通 Git 仓库直接克隆到 `~/.config`。后续修改 `.env` 需要重新创建容器；仅执行 `docker compose restart` 不会更新环境变量。
+
+同步采用非交互模式，最多等待 120 秒，超时后终止同步（强制终止最多额外等待 5 秒）。认证失败、网络不可用、文件冲突或应用失败只输出警告，不阻止容器继续启动。同步不使用强制覆盖；应用失败可能已产生部分修改，不会自动回滚。通过 `docker compose logs devbox` 查看错误，修复后可在容器中手动运行 `chezmoi update`。
+
+如果已有 chezmoi 仓库的 `origin` 与 `DOTFILES_REPO` 不完全一致，会警告并跳过，不会删除源码或自动切换仓库。更换地址前应先备份本地修改，再手动调整现有 chezmoi 仓库。
+
+只配置受信任的仓库：chezmoi 可以执行仓库内的脚本和模板命令。私有仓库需要在容器中预先配置 Git 或 SSH 认证以及 SSH 主机信任；启动同步不会交互询问密码或确认主机密钥。需要首次手动认证时，可暂时留空 `DOTFILES_REPO` 启动环境。不要在仓库 URL 中嵌入 token。
+
+镜像在构建阶段固定安装 Oh My Zsh 和两个 shell 插件。容器入口每次启动都会在 dotfiles 同步之后把仓库中的统一 `.zshrc` 同步到持久化 home，因此重建镜像后不会继续使用旧的 shell 配置。
+
+`chezmoi` 可用于个人非 shell 文件，但不应覆盖 `.zshrc`、Oh My Zsh 或统一插件配置。不启用自动同步时，源码仓库在容器内可用后，也可以显式初始化并应用其他文件：
 
 ```sh
 chezmoi init --source "$HOME/items/dotfiles"
@@ -190,7 +212,9 @@ docker compose exec -T devbox sh -lc \
 - `dev` 可以直接执行 `docker info`、Compose 和 Buildx，嵌套容器可启动。
 - `/home/dev` 可由 `dev` 写入。
 - `mise` 的 data、config、cache 和 state 目录可写。
-- 不访问私有 dotfiles 仓库时，`chezmoi` 也可以正常使用。
+- 未设置或留空 `DOTFILES_REPO` 时，不执行自动同步，`chezmoi` 仍可手动使用。
+- 设置 `DOTFILES_REPO` 后，首次启动应用配置，后续启动拉取更新；同步失败只警告，不阻止启动。
+- 自动同步后，统一 `.zshrc` 仍由本仓库维护。
 - 调用方提供的项目路径在容器内的预期位置可见。
 - `.env` 中的变量在容器内可用，且缺少 `.env` 时构建和启动不报错。
 - `tailscale` sidecar 使用 `/dev/net/tun`、`NET_ADMIN` 和 `NET_RAW`，并且

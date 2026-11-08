@@ -31,7 +31,7 @@
 6. Shell 层安装固定提交的 Oh My Zsh 和插件，并由入口脚本同步仓库维护的 `.zshrc`。
 7. `chezmoi` 层只安装个人 dotfiles 管理器，不负责覆盖统一 shell 配置。
 8. Docker 层从官方 Debian 仓库安装固定版本的 Engine、CLI、containerd、Compose 和 Buildx。
-9. 入口脚本启动独立 `dockerd`，等待就绪后执行用户命令；停止时清理子进程。
+9. 入口脚本在设置 `DOTFILES_REPO` 时以 `dev` 用户通过 chezmoi 同步个人配置，未设置则跳过；同步失败只警告，随后恢复统一 `.zshrc`，启动独立 `dockerd`，等待就绪后执行用户命令；停止时清理子进程。
 10. 后续 agent 配置或语言运行时必须保持独立分层。
 
 有稳定发布资产时，应固定网络下载的版本。版本参数放在文件顶部，便于审查和升级。

@@ -52,6 +52,7 @@ services:
         required: false
     environment:
       XDG_CONFIG_HOME: ${XDG_CONFIG_HOME:-/home/dev/.config}
+      DOTFILES_REPO: ${DOTFILES_REPO:-}
     volumes:
       - personal-devbox-home:/home/dev
       - personal-devbox-docker:/var/lib/docker
